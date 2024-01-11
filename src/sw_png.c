@@ -15,7 +15,7 @@ image_u32 parse_png (stream file) {
     assert(file_header);
     for (u8 i = 0; i < 8; i++) {
         if (memcmp(file_header->_signature, png_signature, 8)) {
-            fprintf(stderr, "ERROR: Invalid PNG_SIGNATURE.\n");
+            fprintf(stderr, BHRED "ERROR" CRESET ": Invalid PNG_SIGNATURE.\n");
         }
     }
 
@@ -69,8 +69,8 @@ image_u32 parse_png (stream file) {
 
 
     }
-
-    printf("\nzlibHeader\n");
+    printf(BHGRN "OK" CRESET ": PNG parsing completed.\n");
+    printf("zlibHeader\n");
     png_idat_header* idat_header = consume(&compressed_data, png_idat_header);
 
     u8 CM       = (idat_header->_CMP & 0xF);

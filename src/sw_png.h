@@ -5,6 +5,7 @@
 
 #include "sw_image.h"
 #include "sw_stream.h"
+#include "sw_ansi_color.h"
 
 extern const u8 png_signature[8];
 
