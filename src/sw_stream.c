@@ -46,3 +46,36 @@ stream_chunk* append_chunk(stream* dst, void* src, u32 size) {
     
     return(chunk);
 }
+
+u32 peek_bits(stream* buf, u32 cnt) {
+    assert(cnt <= 32);
+    
+    u32 result = 0;
+    
+    while((buf->_bitcount < cnt) && !buf->_underflowed) {
+        u32 byte = *consume(buf, u8);
+        buf->_bitbuf |= (byte << buf->_bitcount);
+        buf->_bitcount += 8;
+    }
+    
+    result = buf->_bitbuf & ((1 << cnt) - 1);
+    
+    return(result);
+}
+
+void discard_bits(stream* buf, u32 cnt) {
+    buf->_bitcount -= cnt;
+    buf->_bitbuf >>= cnt;
+}
+
+u32 consume_bits(stream* buf, u32 cnt) {
+    u32 result = peek_bits(buf, cnt);
+    discard_bits(buf, cnt);
+    
+    return(result);
+}
+
+void flush_byte(stream* stream) {
+    u32 cnt = (stream->_bitcount % 8);
+    consume_bits(stream, cnt);
+}

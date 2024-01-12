@@ -19,12 +19,9 @@ image_u32 parse_png (stream file) {
         }
     }
 
-    stream compressed_data;
-    compressed_data._contents._count = 0;
-    compressed_data._contents._data = NULL;
-    compressed_data._first = NULL;
-    compressed_data._last = NULL;
-    compressed_data._underflowed = false;
+    stream compressed_data = {
+        0, 0, 0, false, NULL, NULL
+    };
 
     while (at->_contents._count > 0) {
         png_chunk_header* chunk_header = consume(at, png_chunk_header);
@@ -57,13 +54,9 @@ image_u32 parse_png (stream file) {
 
         } else if (!memcmp(chunk_header->_type, "PLTE", 4)) {
             assert(chunk_header->_length % 3 == 0);
-
         } else if (!memcmp(chunk_header->_type, "IDAT", 4)) {
             append_chunk(&compressed_data, chunk_data, chunk_header->_length);
-
-
         } else if (!memcmp(chunk_header->_type, "IEND", 4)) {
-
         }
 
 
@@ -77,14 +70,48 @@ image_u32 parse_png (stream file) {
     u8 CINFO    = (idat_header->_CMP >> 4);
     u8 FCHECK   = (idat_header->_FLG & 0x1F);
     u8 FDICT    = (idat_header->_FLG >> 5) & 0x1;
-    assert(FDICT == 0);
     u8 FLEVEL   = (idat_header->_FLG >> 6);
+    assert(CM == 8 && FDICT == 0);
 
     printf("    CM: %u\n", CM);
     printf("    CINFO: %u\n", CINFO);
     printf("    FCHECK: %u\n", FCHECK);
     printf("    FDICT: %u\n", FDICT);
     printf("    FLEVEL: %u\n", FLEVEL);
+
+    u32 BFINAL = 0;
+    while (BFINAL == 0) {
+        BFINAL = consume_bits(&compressed_data, 1);
+        u32 BTYPE = consume_bits(&compressed_data, 2);
+
+        if (BTYPE == 3) {
+            fprintf(stderr, BHRED "ERROR" CRESET ": Invalid BTYPE.\n");
+        } 
+        else if (BTYPE == 0) {
+            flush_byte(&compressed_data);
+            u16 LEN = (u16)consume_bits(&compressed_data, 16);
+            u16 NLEN = (u16)consume_bits(&compressed_data, 16);
+            assert(~LEN == NLEN);
+            // TODO: Consume LEN bytes of uncompressed data.
+        } 
+        else if (BTYPE == 1) {
+        } 
+        else if (BTYPE == 2) {
+            u32 HLIT  = consume_bits(&compressed_data, 5) + 257;
+            u32 HDIST = consume_bits(&compressed_data, 5) + 1;
+            u32 HCLEN = consume_bits(&compressed_data, 4) + 4;
+            
+            const u8 CL_symbols[19] = { 16, 17, 18, 0, 8, 7, 9, 6, 10, 5, 11, 4, 12, 3, 13, 2, 14, 1, 15};
+            assert(HCLEN <= sizeof(CL_symbols));
+            u32 CL_table[sizeof(CL_symbols)];
+            for (u32 i = 0; i < HCLEN; i++) {
+                CL_table[CL_symbols[i]] = consume_bits(&compressed_data, 3);
+            }
+        }
+
+
+
+    }
 
     return(result);
 }

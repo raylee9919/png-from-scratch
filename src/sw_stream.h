@@ -31,4 +31,12 @@ stream make_read_stream(buffer contents);
 
 stream_chunk* append_chunk(stream* dst, void* src, u32 size);
 
+u32 peek_bits(stream* buf, u32 cnt);
+
+void discard_bits(stream* buf, u32 cnt);
+
+u32 consume_bits(stream* buf, u32 cnt);
+
+void flush_byte(stream* stream);
+
 #endif
