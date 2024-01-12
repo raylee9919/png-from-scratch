@@ -4,6 +4,7 @@
 #include <assert.h>
 #include "sw_shared.h"
 
+#define LEN(array) (sizeof(array) / sizeof((array)[0]))
 
 typedef struct stream_chunk {
     buffer _contents;
