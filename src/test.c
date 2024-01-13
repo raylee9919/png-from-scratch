@@ -19,7 +19,7 @@ stream read_entire_file(char* filename) {
     
     stream result = make_read_stream(buf);
     if(!in) {
-        fprintf(stderr, BHRED "ERROR" CRESET ": Cannot open file %s.\n", filename);
+        fprintf(stderr, "ERRORT : Cannot open file %s.\n", filename);
     }
     
     return(result);
@@ -28,6 +28,7 @@ stream read_entire_file(char* filename) {
 int main() {
     stream file = read_entire_file("sample.png");
     image_u32 image = ParsePNG(file);
+    free(image._pixels);
 
 
     return 0;

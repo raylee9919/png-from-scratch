@@ -8,7 +8,7 @@ OBJS := $(SRCS:%=$(BUILD_DIR)/%.o)
 INC_DIRS := $(shell find $(SRC_DIRS) -type d)
 
 CC := cc
-CFLAGS := -fPIC -Wall -Wextra -g
+CFLAGS := -fPIC -Wall -g
 
 $(BUILD_DIR)/$(TARGET_EXEC): $(OBJS)
 	$(CC) $(OBJS) -o $@

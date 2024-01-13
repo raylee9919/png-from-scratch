@@ -4,9 +4,7 @@
 #include <stdio.h>
 #include <limits.h>
 
-#include "sw_image.h"
 #include "sw_stream.h"
-#include "sw_ansi_color.h"
 
 #define MAX_CODE_LENGTH     16
 #define LL_CODE_LENGTH      15
@@ -17,6 +15,13 @@ enum BTYPE
 {
     NON_COMPRESSED, FIXED_HUFFMAN, DYNAMIC_HUFFMAN, RESERVED
 };
+
+typedef struct image_u32
+{
+    u32     _width;
+    u32     _height;
+    u32*    _pixels;
+} image_u32;
 
 typedef struct
 {
@@ -60,19 +65,24 @@ typedef struct
 {
     u16     _symbol;
     u16     _code;
-} Entry;
+} HuffmanEntry;
 
 typedef struct
 {
-    u32 _max_code_length;
-    u32 _entry_count;
-    Entry* _entries;
-} Table;
+    u32 _maxCodeLen;
+    u32 _entryCnt;
+    HuffmanEntry* _entries;
+} HuffmanTable;
 
 image_u32 ParsePNG(stream file);
 
-void CLToCode(Table* table);
+HuffmanTable AllocHuffman(u32 maxCodeLen);
 
-u32* BuildDecodeTable(Table* table);
+void ComputeHuffman(u32 symbolCnt, u32* symbolCodeLen, HuffmanTable* result);
+
+u32 HuffmanDecode(HuffmanTable* Huffman, stream* Input);
+
+void* AllocPixels(u32 width, u32 height, u32 BPP);
+
 
 #endif
