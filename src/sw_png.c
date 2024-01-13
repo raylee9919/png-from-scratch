@@ -28,9 +28,11 @@ image_u32 ParsePNG (stream file)
         swap_endian_32(&chunk_footer->_CRC);
 
 
+        #ifdef DEBUG
         for (u8 i = 0; i < 4; i++)
             fputc(chunk_header->_type[i], stdout);
         fputc('\n', stdout);
+        #endif
 
         if (!memcmp(chunk_header->_type, "IHDR", 4))
         {
@@ -43,6 +45,7 @@ image_u32 ParsePNG (stream file)
             height = ihdr->_height;
             pixels = (u8*)AllocPixels(width, height, 4);
 
+            #ifdef DEBUG
             fprintf(stdout, "├ Width: %u\n", ihdr->_width);
             fprintf(stdout, "├ Height: %u\n", ihdr->_height);
             fprintf(stdout, "├ BitDepth: %u\n", ihdr->_bitdepth);
@@ -50,6 +53,7 @@ image_u32 ParsePNG (stream file)
             fprintf(stdout, "├ CompressionMethod: %u\n", ihdr->_compressionmethod);
             fprintf(stdout, "├ FilterMethod: %u\n", ihdr->_filtermethod);
             fprintf(stdout, "└ InterlaceMethod: %u\n", ihdr->_interlacemethod);
+            #endif
 
         }
         else if (!memcmp(chunk_header->_type, "PLTE", 4)) 
@@ -68,7 +72,7 @@ image_u32 ParsePNG (stream file)
 
     }
 
-    printf("zlibHeader\n");
+
     png_idat_header* idat_header = consume(&compData, png_idat_header);
 
     u8 CM       = (idat_header->_CMP & 0xF);
@@ -79,11 +83,14 @@ image_u32 ParsePNG (stream file)
 
     assert(CM == 8 && FDICT == 0);
 
+    #ifdef DEBUG
+    printf("zlibHeader\n");
     printf("├ CM: %u\n", CM);
     printf("├ CINFO: %u\n", CINFO);
     printf("├ FCHECK: %u\n", FCHECK);
     printf("├ FDICT: %u\n", FDICT);
     printf("└ FLEVEL: %u\n", FLEVEL);
+    #endif
 
     u32 BFINAL = 0;
     while (BFINAL == 0)
