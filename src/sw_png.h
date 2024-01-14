@@ -74,6 +74,7 @@ typedef struct
     HuffmanEntry* _entries;
 } HuffmanTable;
 
+
 image_u32 ParsePNG(stream file);
 
 HuffmanTable AllocHuffman(u32 maxCodeLen);
@@ -82,7 +83,10 @@ void ComputeHuffman(u32 symbolCnt, u32* symbolCodeLen, HuffmanTable* result);
 
 u32 HuffmanDecode(HuffmanTable* Huffman, stream* Input);
 
-void* AllocPixels(u32 width, u32 height, u32 BPP);
+void* AllocPixels(u32 width, u32 height, u32 bpp, u32 extraBytes);
 
+void BuildResultPixels(u8* dst, u8* src, u32 width, u32 height, u32 colorType, u32 bppSrc);
+
+void Unfilter(u8* dst, u8* src, u32 width, u32 height);
 
 #endif

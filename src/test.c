@@ -26,7 +26,7 @@ stream read_entire_file(char* filename) {
 }
 
 int main() {
-    stream file = read_entire_file("sample.png");
+    stream file = read_entire_file("img/sample1.png");
     image_u32 image = ParsePNG(file);
     free(image._pixels);
 

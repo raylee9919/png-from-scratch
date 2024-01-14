@@ -1,6 +1,74 @@
 #include "sw_png.h"
 #include "sw_stream.h"
 
+
+const HuffmanEntry lenExtra[] =
+{
+    {3, 0},   // 257
+    {4, 0},   // 258
+    {5, 0},   // 259
+    {6, 0},   // 260
+    {7, 0},   // 261
+    {8, 0},   // 262
+    {9, 0},   // 263
+    {10, 0},  // 264
+    {11, 1},  // 265
+    {13, 1},  // 266
+    {15, 1},  // 267
+    {17, 1},  // 268
+    {19, 2},  // 269
+    {23, 2},  // 270
+    {27, 2},  // 271
+    {31, 2},  // 272
+    {35, 3},  // 273
+    {43, 3},  // 274
+    {51, 3},  // 275
+    {59, 3},  // 276
+    {67, 4},  // 277
+    {83, 4},  // 278
+    {99, 4},  // 279
+    {115, 4}, // 280
+    {131, 5}, // 281
+    {163, 5}, // 282
+    {195, 5}, // 283
+    {227, 5}, // 284
+    {258, 0}, // 285
+};
+
+HuffmanEntry distExtra[] =
+{
+    {1, 0},      // 0
+    {2, 0},      // 1
+    {3, 0},      // 2
+    {4, 0},      // 3
+    {5, 1},      // 4
+    {7, 1},      // 5
+    {9, 2},      // 6
+    {13, 2},     // 7
+    {17, 3},     // 8
+    {25, 3},     // 9
+    {33, 4},     // 10
+    {49, 4},     // 11
+    {65, 5},     // 12
+    {97, 5},     // 13
+    {129, 6},    // 14
+    {193, 6},    // 15
+    {257, 7},    // 16
+    {385, 7},    // 17
+    {513, 8},    // 18
+    {769, 8},    // 19
+    {1025, 9},   // 20
+    {1537, 9},   // 21
+    {2049, 10},  // 22
+    {3073, 10},  // 23
+    {4097, 11},  // 24
+    {6145, 11},  // 25
+    {8193, 12},  // 26
+    {12289, 12}, // 27
+    {16385, 13}, // 28
+    {24577, 13}, // 29
+};
+
 image_u32 ParsePNG (stream file)
 {
     image_u32 result;
@@ -15,6 +83,10 @@ image_u32 ParsePNG (stream file)
     assert(file_header && !memcmp(file_header->_signature, png_signature, 8));
 
     stream compData = {0, 0, 0, false, NULL, NULL};
+
+    u8 colorType;
+    u32 bppSrc;
+    u32 bppDst;
 
     while (at->_contents._count > 0)
     {
@@ -34,6 +106,7 @@ image_u32 ParsePNG (stream file)
         fputc('\n', stdout);
         #endif
 
+
         if (!memcmp(chunk_header->_type, "IHDR", 4))
         {
             png_ihdr* ihdr = (png_ihdr*)chunk_data;
@@ -43,7 +116,37 @@ image_u32 ParsePNG (stream file)
 
             width  = ihdr->_width;
             height = ihdr->_height;
-            pixels = (u8*)AllocPixels(width, height, 4);
+
+            colorType = ihdr->_colortype;
+
+            switch (colorType)
+            {
+                case (0):
+                    bppSrc = 1;
+                    bppDst = 1;
+                    break;
+                case (2):
+                    bppSrc = 3;
+                    bppDst = 3;
+                    break;
+                case (3):
+                    bppSrc = 1;
+                    bppDst = 3;
+                    break;
+                case (4):
+                    bppSrc = 2;
+                    bppDst = 2;
+                    break;
+                case (6):
+                    bppSrc = 4;
+                    bppDst = 4;
+                    break;
+                default:
+                    exit(EXIT_FAILURE);
+                    break;
+            }
+
+            pixels = (u8*)AllocPixels(width, height, bppDst, 0);
 
             #ifdef DEBUG
             fprintf(stdout, "├ Width: %u\n", ihdr->_width);
@@ -54,6 +157,7 @@ image_u32 ParsePNG (stream file)
             fprintf(stdout, "├ FilterMethod: %u\n", ihdr->_filtermethod);
             fprintf(stdout, "└ InterlaceMethod: %u\n", ihdr->_interlacemethod);
             #endif
+
 
         }
         else if (!memcmp(chunk_header->_type, "PLTE", 4)) 
@@ -91,6 +195,9 @@ image_u32 ParsePNG (stream file)
     printf("├ FDICT: %u\n", FDICT);
     printf("└ FLEVEL: %u\n", FLEVEL);
     #endif
+
+    u8* decompData = AllocPixels(width, height, bppSrc, 1);
+    u32 decompIdx = 0;
 
     u32 BFINAL = 0;
     while (BFINAL == 0)
@@ -134,7 +241,6 @@ image_u32 ParsePNG (stream file)
 
             u32 lldCnt = HLIT + HDIST;
             u32 lldTable[lldCnt];
-            assert(lldCnt <= LEN(lldTable));
 
             u32 idx = 0;
             u32 repVal;
@@ -150,6 +256,7 @@ image_u32 ParsePNG (stream file)
                 }
                 else if(clSymbol == 16)
                 {
+                    assert(idx > 0);
                     repVal = lldTable[idx - 1];
                     repCnt = 3 + ConsumeBits(&compData, 2);
                 }
@@ -178,14 +285,50 @@ image_u32 ParsePNG (stream file)
             ComputeHuffman(HLIT,  lldTable,         &llTable);
             ComputeHuffman(HDIST, lldTable + HLIT,  &dTable);
 
+            while (1)
+            {
+                u32 llSymbol = HuffmanDecode(&llTable, &compData);
+                assert(llSymbol <= 285);
 
+                if (llSymbol <= 255)
+                {
+                    llSymbol &= 0xFF;
+                    decompData[decompIdx++] = (u8)llSymbol;
+                }
+                else if (llSymbol == 256)
+                {
+                    #ifdef DEBUG
+                    printf("End of sample.\n");
+                    #endif
+                    break;
+                }
+                else
+                {
+                    u32 lenExtraCnt = lenExtra[llSymbol - 257]._code;
+                    u32 len = lenExtra[llSymbol - 257]._symbol + ConsumeBits(&compData, lenExtraCnt);
 
+                    u32 dSymbol = HuffmanDecode(&dTable, &compData);
+                    u32 distExtraCnt = distExtra[dSymbol]._code;
+                    u32 dist = distExtra[dSymbol]._symbol + ConsumeBits(&compData, distExtraCnt);
+
+                    u32 back = (decompIdx - dist);
+
+                    while (len--)
+                    {
+                        decompData[decompIdx++] = decompData[back++];
+                    }
+                }
+            }
 
         }
 
 
 
     }
+
+    printf("%u / %u\n", decompIdx, bppSrc * width * height + height);
+    assert(decompIdx == bppSrc * width * height + height);
+    BuildResultPixels(pixels, decompData, width, height, colorType, bppSrc);
 
     result._width  = width;
     result._height = height;
@@ -278,9 +421,61 @@ u32 HuffmanDecode(HuffmanTable* Huffman, stream* Input)
     return(result);
 }
 
-void* AllocPixels(u32 width, u32 height, u32 bpp)
+void* AllocPixels(u32 width, u32 height, u32 bpp, u32 extraBytes)
 {
-    void* result = malloc(width * height * bpp);
-    
+    void* result = malloc(width * height * bpp + (extraBytes * height));
+
     return(result);
+}
+
+void BuildResultPixels(u8* dst, u8* src, u32 width, u32 height, u32 colorType, u32 bppSrc)
+{
+    u8* at = src;
+
+    for (u32 row = 0; row < height; row++)
+    {
+        u8 filter = *at;
+        at += (width * bppSrc + 1);
+
+        switch(filter)
+        {
+            case(0):
+            {
+                break;
+            }
+            case(1):
+            {
+                break;
+            }
+            case(2):
+            {
+                break;
+            }
+            case(3):
+            {
+                break;
+            }
+            case(4):
+            {
+                break;
+            }
+            default:
+            {
+                fprintf(stderr, "ERROR: Invalid filter %u at row %u.\n", filter, row + 1);
+                exit(EXIT_FAILURE);
+                break;
+            }
+        }
+
+    }
+
+    if (colorType == 3) // NOTE: use PLTE
+    {
+
+    }
+
+
+
+
+    free(src);
 }
