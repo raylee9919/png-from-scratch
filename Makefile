@@ -8,10 +8,11 @@ OBJS := $(SRCS:%=$(BUILD_DIR)/%.o)
 INC_DIRS := $(shell find $(SRC_DIRS) -type d)
 
 CC := cc
-CFLAGS := -fPIC -Wall -g -DDEBUG
+CFLAGS := -fPIC -Wall -g -DDEBUG -lsdl2
+LFLAGS := -lSDL2
 
 $(BUILD_DIR)/$(TARGET_EXEC): $(OBJS)
-	$(CC) $(OBJS) -o $@
+	$(CC) $(OBJS) $(LFLAGS) -o $@
 
 $(BUILD_DIR)/%.c.o: %.c
 	mkdir -p $(dir $@)

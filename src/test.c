@@ -1,7 +1,8 @@
-#include <stdio.h>
 #include <stdlib.h>
+#include <SDL2/SDL.h>
 
 #include "sw_png.h"
+
 
 stream read_entire_file(char* filename) {
     buffer buf = {};
@@ -25,11 +26,52 @@ stream read_entire_file(char* filename) {
     return(result);
 }
 
+void RenderImageU32(const image_u32* image) {
+    assert(SDL_Init(SDL_INIT_VIDEO) == 0);
+
+    SDL_Window* window = SDL_CreateWindow("PNG test", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, image->_width, image->_height, SDL_WINDOW_SHOWN);
+    assert(window != NULL);
+
+    SDL_Renderer* renderer = SDL_CreateRenderer(window, 0, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
+    assert(renderer != NULL);
+
+    SDL_RenderClear(renderer);
+
+    u32 width = image->_width;
+    u32 height = image->_height;
+
+    printf("Width: %u\n", width);
+    printf("Height: %u\n", height);
+
+    u8* sample = (u8*)image->_pixels;
+    for (u32 y = 0; y < height; y++)
+    {
+        for (u32 x = 0; x < width; x++)
+        {
+            u8 r = *sample++;
+            u8 g = *sample++;
+            u8 b = *sample++;
+            u8 a = *sample++;
+            SDL_SetRenderDrawColor(renderer, r, g, b, a);
+            SDL_RenderDrawPoint(renderer, x, y);
+        }
+    }
+
+    SDL_RenderPresent(renderer);
+
+    SDL_Delay(1500);
+
+    SDL_DestroyRenderer(renderer);
+    SDL_DestroyWindow(window);
+    SDL_Quit();
+}
+
 int main() {
     stream file = read_entire_file("img/sample1.png");
     image_u32 image = ParsePNG(file);
+
+    RenderImageU32(&image);
+
     free(image._pixels);
-
-
     return 0;
 }

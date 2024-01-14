@@ -326,13 +326,18 @@ image_u32 ParsePNG (stream file)
 
     }
 
+    #ifdef DEBUG
     printf("%u / %u\n", decompIdx, bppSrc * width * height + height);
+    printf("BPP_decompPixels: %u\n", bppSrc);
+    printf("BPP_finalPixels: %u\n", bppDst);
+    #endif
     assert(decompIdx == bppSrc * width * height + height);
-    BuildResultPixels(pixels, decompData, width, height, colorType, bppSrc);
 
+    BuildResultPixels(pixels, decompData, width, height, colorType, bppDst, bppSrc);
     result._width  = width;
     result._height = height;
     result._pixels = (u32*)pixels;
+
     return(result);
 }
 
@@ -428,54 +433,133 @@ void* AllocPixels(u32 width, u32 height, u32 bpp, u32 extraBytes)
     return(result);
 }
 
-void BuildResultPixels(u8* dst, u8* src, u32 width, u32 height, u32 colorType, u32 bppSrc)
+void BuildResultPixels(u8* dst, u8* src, u32 width, u32 height, u32 colorType, u32 bppDst, u32 bppSrc)
 {
-    u8* at = src;
+    Unfilter(src, width, height, bppSrc);
 
-    for (u32 row = 0; row < height; row++)
+    if (colorType == 3) // NOTE: if uses PLTE
     {
-        u8 filter = *at;
-        at += (width * bppSrc + 1);
+        //TOOD: src->PLTC->dst
+    }
+    else
+    {
+        u32 widthBytes = width * bppDst;
+        for (u32 row = 0; row < height; row++)
+        {
+            u32 baseIdxDst = (row * width * bppDst);
+            u32 baseIdxSrc = (row * width * bppSrc) + 1;
+            for (u32 offset; offset < widthBytes; offset++)
+            {
+                dst[baseIdxDst + offset] = src[baseIdxSrc + offset];
+            }
+        }
+    }
+
+    free(src);
+}
+
+void Unfilter(u8* pixels, u32 width, u32 height, u32 bpp)
+{
+    u32 widthByte  = width  * bpp;
+    u32 heightByte = height * bpp;
+
+    for (int row = 0; row < height; row++)
+    {
+        u32 baseIdx = row * (widthByte + 1) + 1;
+        u8 filter = pixels[baseIdx - 1];
 
         switch(filter)
         {
-            case(0):
+            case(FILTER_NONE):
             {
-                break;
-            }
-            case(1):
+            } break;
+            case(FILTER_SUB):
             {
-                break;
-            }
-            case(2):
+                u32 stride = bpp;
+                for(;stride < widthByte;
+                    stride += bpp)
+                {
+                    for (u32 offset = 0; offset < bpp; offset++)
+                    {
+                        u32 idx = (baseIdx + stride + offset);
+                        pixels[idx] = pixels[idx] + pixels[idx - bpp];
+                    }
+                }
+            } break;
+            case(FILTER_UP):
             {
-                break;
-            }
-            case(3):
+                if (row != 0)
+                {
+                    u32 stride = 0;
+                    for(;stride < widthByte;
+                        stride += bpp)
+                    {
+                        for (u32 offset = 0; offset < bpp; offset++)
+                        {
+                            u32 idx = (baseIdx + stride + offset);
+                            pixels[idx] = pixels[idx] + pixels[idx - widthByte - 1];
+                        }
+                    }
+                }
+            } break;
+            case(FILTER_AVERAGE):
             {
-                break;
-            }
-            case(4):
+                u32 stride = 0;
+                for(;stride < widthByte;
+                    stride += bpp)
+                {
+                    for (u32 offset = 0; offset < bpp; offset++)
+                    {
+                        u32 idx = (baseIdx + stride + offset);
+                        u8 left = (baseIdx == 0) ? 0 : pixels[idx - bpp];
+                        u8 up = (row == 0) ? 0 : pixels[idx - widthByte - 1];
+                        pixels[idx] = pixels[idx] + ((left + up) >> 2);
+                    }
+                }
+            } break;
+            case(FILTER_PAETH):
             {
-                break;
-            }
+                u32 stride = 0;
+                for(;stride < widthByte;
+                    stride += bpp)
+                {
+                    for (u32 offset = 0; offset < bpp; offset++)
+                    {
+                        u32 idx = (baseIdx + stride + offset);
+                        u8 left = (baseIdx == 0) ? 0 : pixels[idx - bpp];
+                        u8 up = (row == 0) ? 0 : pixels[idx - widthByte - 1];
+                        u8 diagonal = (baseIdx == 0 || row == 0) ?
+                            0 : pixels[idx - widthByte - 2];
+                        pixels[idx] = pixels[idx] + PaethPredictor(left, up, diagonal);
+                    }
+                }
+            } break;
             default:
             {
                 fprintf(stderr, "ERROR: Invalid filter %u at row %u.\n", filter, row + 1);
                 exit(EXIT_FAILURE);
-                break;
-            }
+            } break;
         }
-
     }
 
-    if (colorType == 3) // NOTE: use PLTE
-    {
+}
 
-    }
+u8 PaethPredictor(u8 a, u8 b, u8 c)
+{
+    u32 p = a + b - c;
+    u32 pa = Diff(p, a);
+    u32 pb = Diff(p, b);
+    u32 pc = Diff(p, c);
 
+    return(Min(Min(pa, pb), pc));
+}
 
+u32 Diff(u32 x, u32 y)
+{
+    return((x > y) ? x - y : y - x);
+}
 
-
-    free(src);
+u32 Min(u32 x, u32 y)
+{
+    return((x < y) ? x : y);
 }

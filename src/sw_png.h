@@ -16,6 +16,16 @@ enum BTYPE
     NON_COMPRESSED, FIXED_HUFFMAN, DYNAMIC_HUFFMAN, RESERVED
 };
 
+enum FILTER
+{
+    FILTER_NONE, FILTER_SUB, FILTER_UP, FILTER_AVERAGE, FILTER_PAETH
+};
+
+enum SAMPLE
+{
+    SAMPLE_RED, SAMPLE_BLUE, SAMPLE_GREEN, SAMPLE_ALPHA
+};
+
 typedef struct image_u32
 {
     u32     _width;
@@ -85,8 +95,14 @@ u32 HuffmanDecode(HuffmanTable* Huffman, stream* Input);
 
 void* AllocPixels(u32 width, u32 height, u32 bpp, u32 extraBytes);
 
-void BuildResultPixels(u8* dst, u8* src, u32 width, u32 height, u32 colorType, u32 bppSrc);
+void BuildResultPixels(u8* dst, u8* src, u32 width, u32 height, u32 colorType, u32 bppDst, u32 bppSrc);
 
-void Unfilter(u8* dst, u8* src, u32 width, u32 height);
+void Unfilter(u8* pixels, u32 width, u32 height, u32 bpp);
+
+u8 PaethPredictor(u8 left, u8 up, u8 diagonal);
+
+u32 Diff(u32 x, u32 y);
+
+u32 Min(u32 x, u32 y);
 
 #endif
