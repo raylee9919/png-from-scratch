@@ -443,14 +443,17 @@ void BuildResultPixels(u8* dst, u8* src, u32 width, u32 height, u32 colorType, u
     }
     else
     {
-        u32 widthBytes = width * bppDst;
-        for (u32 row = 0; row < height; row++)
+        u8* atSrc = src;
+        u8* atDst = dst;
+
+        for (u32 y = 0; y < height; y++)
         {
-            u32 baseIdxDst = (row * width * bppDst);
-            u32 baseIdxSrc = (row * width * bppSrc) + 1;
-            for (u32 offset; offset < widthBytes; offset++)
+            atSrc++;
+            for (u32 x = 0; x < width * bppDst; x++)
             {
-                dst[baseIdxDst + offset] = src[baseIdxSrc + offset];
+                *atDst = *atSrc;
+                atDst++;
+                atSrc++;
             }
         }
     }
@@ -460,8 +463,7 @@ void BuildResultPixels(u8* dst, u8* src, u32 width, u32 height, u32 colorType, u
 
 void Unfilter(u8* pixels, u32 width, u32 height, u32 bpp)
 {
-    u32 widthByte  = width  * bpp;
-    u32 heightByte = height * bpp;
+    u32 widthByte  = width * bpp;
 
     for (int row = 0; row < height; row++)
     {
@@ -511,9 +513,9 @@ void Unfilter(u8* pixels, u32 width, u32 height, u32 bpp)
                     for (u32 offset = 0; offset < bpp; offset++)
                     {
                         u32 idx = (baseIdx + stride + offset);
-                        u8 left = (baseIdx == 0) ? 0 : pixels[idx - bpp];
-                        u8 up = (row == 0) ? 0 : pixels[idx - widthByte - 1];
-                        pixels[idx] = pixels[idx] + ((left + up) >> 2);
+                        u32 left = (stride == 0) ? 0 : (u32)pixels[idx - bpp];
+                        u32 up = (row == 0) ? 0 : (u32)pixels[idx - widthByte - 1];
+                        pixels[idx] = pixels[idx] + (u8)((left + up) >> 1);
                     }
                 }
             } break;
@@ -526,10 +528,10 @@ void Unfilter(u8* pixels, u32 width, u32 height, u32 bpp)
                     for (u32 offset = 0; offset < bpp; offset++)
                     {
                         u32 idx = (baseIdx + stride + offset);
-                        u8 left = (baseIdx == 0) ? 0 : pixels[idx - bpp];
+                        u8 left = (stride == 0) ? 0 : pixels[idx - bpp];
                         u8 up = (row == 0) ? 0 : pixels[idx - widthByte - 1];
-                        u8 diagonal = (baseIdx == 0 || row == 0) ?
-                            0 : pixels[idx - widthByte - 2];
+                        u8 diagonal = (stride == 0 || row == 0) ?
+                            0 : pixels[idx - widthByte - 1 - bpp];
                         pixels[idx] = pixels[idx] + PaethPredictor(left, up, diagonal);
                     }
                 }
@@ -541,25 +543,31 @@ void Unfilter(u8* pixels, u32 width, u32 height, u32 bpp)
             } break;
         }
     }
-
 }
 
-u8 PaethPredictor(u8 a, u8 b, u8 c)
+u8 PaethPredictor(u8 left, u8 up, u8 diagonal)
 {
-    u32 p = a + b - c;
-    u32 pa = Diff(p, a);
-    u32 pb = Diff(p, b);
-    u32 pc = Diff(p, c);
+    s32 a = (s32)left;
+    s32 b = (s32)up;
+    s32 c = (s32)diagonal;
+    s32 p = a + b - c;
 
-    return(Min(Min(pa, pb), pc));
-}
-
-u32 Diff(u32 x, u32 y)
-{
-    return((x > y) ? x - y : y - x);
-}
-
-u32 Min(u32 x, u32 y)
-{
-    return((x < y) ? x : y);
+    s32 pa = p - a;
+    if(pa < 0) {pa = -pa;}
+    
+    s32 pb = p - b;
+    if(pb < 0) {pb = -pb;}
+    
+    s32 pc = p - c;
+    if(pc < 0) {pc = -pc;}
+    
+    s32 result;
+    if((pa <= pb) && (pa <= pc))
+        result = a;
+    else if(pb <= pc)
+        result = b;
+    else
+        result = c;
+    
+    return((u8)result);
 }

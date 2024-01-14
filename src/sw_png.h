@@ -26,6 +26,7 @@ enum SAMPLE
     SAMPLE_RED, SAMPLE_BLUE, SAMPLE_GREEN, SAMPLE_ALPHA
 };
 
+
 typedef struct image_u32
 {
     u32     _width;
@@ -100,9 +101,5 @@ void BuildResultPixels(u8* dst, u8* src, u32 width, u32 height, u32 colorType, u
 void Unfilter(u8* pixels, u32 width, u32 height, u32 bpp);
 
 u8 PaethPredictor(u8 left, u8 up, u8 diagonal);
-
-u32 Diff(u32 x, u32 y);
-
-u32 Min(u32 x, u32 y);
 
 #endif

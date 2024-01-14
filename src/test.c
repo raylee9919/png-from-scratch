@@ -1,3 +1,4 @@
+#include <SDL2/SDL_events.h>
 #include <stdlib.h>
 #include <SDL2/SDL.h>
 
@@ -43,23 +44,35 @@ void RenderImageU32(const image_u32* image) {
     printf("Width: %u\n", width);
     printf("Height: %u\n", height);
 
-    u8* sample = (u8*)image->_pixels;
-    for (u32 y = 0; y < height; y++)
+    b32 quit = false;
+    SDL_Event event;
+
+    while (!quit)
     {
-        for (u32 x = 0; x < width; x++)
+        while (SDL_PollEvent(&event))
         {
-            u8 r = *sample++;
-            u8 g = *sample++;
-            u8 b = *sample++;
-            u8 a = *sample++;
-            SDL_SetRenderDrawColor(renderer, r, g, b, a);
-            SDL_RenderDrawPoint(renderer, x, y);
+            if (event.type == SDL_QUIT)
+            {
+                quit = true;
+            }
         }
+
+        u8* sample = (u8*)image->_pixels;
+        for (u32 y = 0; y < height; y++)
+        {
+            for (u32 x = 0; x < width; x++)
+            {
+                u8 r = *sample++;
+                u8 g = *sample++;
+                u8 b = *sample++;
+                u8 a = *sample++;
+                SDL_SetRenderDrawColor(renderer, r, g, b, a);
+                SDL_RenderDrawPoint(renderer, x, y);
+            }
+        }
+
+        SDL_RenderPresent(renderer);
     }
-
-    SDL_RenderPresent(renderer);
-
-    SDL_Delay(1500);
 
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
@@ -67,7 +80,7 @@ void RenderImageU32(const image_u32* image) {
 }
 
 int main() {
-    stream file = read_entire_file("img/sample1.png");
+    stream file = read_entire_file("img/img1.png");
     image_u32 image = ParsePNG(file);
 
     RenderImageU32(&image);
