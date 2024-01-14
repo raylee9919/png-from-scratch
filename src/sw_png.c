@@ -100,7 +100,7 @@ image_u32 ParsePNG (stream file)
         swap_endian_32(&chunk_footer->_CRC);
 
 
-        #ifdef DEBUG
+        #ifdef PNG_DEBUG
         for (u8 i = 0; i < 4; i++)
             fputc(chunk_header->_type[i], stdout);
         fputc('\n', stdout);
@@ -148,7 +148,7 @@ image_u32 ParsePNG (stream file)
 
             pixels = (u8*)AllocPixels(width, height, bppDst, 0);
 
-            #ifdef DEBUG
+            #ifdef PNG_DEBUG
             fprintf(stdout, "├ Width: %u\n", ihdr->_width);
             fprintf(stdout, "├ Height: %u\n", ihdr->_height);
             fprintf(stdout, "├ BitDepth: %u\n", ihdr->_bitdepth);
@@ -171,6 +171,49 @@ image_u32 ParsePNG (stream file)
         else if (!memcmp(chunk_header->_type, "IEND", 4))
         {
         }
+        else if (!memcmp(chunk_header->_type, "tRNS", 4))
+        {
+        }
+        else if (!memcmp(chunk_header->_type, "gAMA", 4))
+        {
+        }
+        else if (!memcmp(chunk_header->_type, "cHRM", 4))
+        {
+        }
+        else if (!memcmp(chunk_header->_type, "sRGB", 4))
+        {
+        }
+        else if (!memcmp(chunk_header->_type, "iCCP", 4))
+        {
+        }
+        else if (!memcmp(chunk_header->_type, "tEXt", 4))
+        {
+
+        }
+        else if (!memcmp(chunk_header->_type, "zTXt", 4))
+        {
+        }
+        else if (!memcmp(chunk_header->_type, "iTXt", 4))
+        {
+        }
+        else if (!memcmp(chunk_header->_type, "bKGD", 4))
+        {
+        }
+        else if (!memcmp(chunk_header->_type, "pHYs", 4))
+        {
+        }
+        else if (!memcmp(chunk_header->_type, "sBIT", 4))
+        {
+        }
+        else if (!memcmp(chunk_header->_type, "sPLT", 4))
+        {
+        }
+        else if (!memcmp(chunk_header->_type, "hIST", 4))
+        {
+        }
+        else if (!memcmp(chunk_header->_type, "tIME", 4))
+        {
+        }
 
 
 
@@ -187,7 +230,7 @@ image_u32 ParsePNG (stream file)
 
     assert(CM == 8 && FDICT == 0);
 
-    #ifdef DEBUG
+    #ifdef PNG_DEBUG
     printf("zlibHeader\n");
     printf("├ CM: %u\n", CM);
     printf("├ CINFO: %u\n", CINFO);
@@ -207,81 +250,143 @@ image_u32 ParsePNG (stream file)
 
         if (BTYPE == RESERVED)
         {
+            fprintf(stderr, "ERROR: Invalid BTYPE %u\n", BTYPE);
+            exit(EXIT_FAILURE);
         } 
         else if (BTYPE == NON_COMPRESSED)
         {
             FlushByte(&compData);
             u16 LEN     = (u16)ConsumeBits(&compData, 16);
             u16 NLEN    = (u16)ConsumeBits(&compData, 16);
-            assert(~LEN == NLEN);
-            // TODO: Consume LEN bytes of uncompressed data.
-        } 
-        else if (BTYPE == FIXED_HUFFMAN)
-        {
-        } 
-        else if (BTYPE == DYNAMIC_HUFFMAN)
-        {
-            u32 HLIT  = ConsumeBits(&compData, 5) + 257;
-            u32 HDIST = ConsumeBits(&compData, 5) + 1;
-            u32 HCLEN = ConsumeBits(&compData, 4) + 4;
 
-            const u8 clSymbols[19] = {16, 17, 18, 0, 8, 7, 9, 6, 10, 5, 11, 4, 12, 3, 13, 2, 14, 1, 15};
-            assert(HCLEN <= LEN(clSymbols));
-
-            u32 clArray[LEN(clSymbols)];
-            memset(clArray, 0, sizeof(clArray));
-
-            for (int i = 0; i < HCLEN; i++)
+            if (LEN != ~NLEN)
             {
-                clArray[clSymbols[i]] = ConsumeBits(&compData, 3);
+                fprintf(stderr, "ERROR: LEN, NLEN mismatch.\n");
+                exit(EXIT_FAILURE);
             }
 
-            HuffmanTable clTable = AllocHuffman(CL_CODE_LENGTH);
-            ComputeHuffman(LEN(clSymbols), clArray, &clTable);
-
-            u32 lldCnt = HLIT + HDIST;
-            u32 lldTable[lldCnt];
-
-            u32 idx = 0;
-            u32 repVal;
-            u32 repCnt;
-            while(idx < lldCnt)
+            while(LEN)
             {
-                u32 clSymbol = HuffmanDecode(&clTable, &compData);
-                assert(clSymbol <= 18);
-                if(clSymbol <= 15)
+                refill_if_necessary(&compData);
+
+                u16 bytes = LEN;
+                if (bytes > compData._contents._count)
                 {
-                    repVal = clSymbol;
-                    repCnt = 1;
-                }
-                else if(clSymbol == 16)
-                {
-                    assert(idx > 0);
-                    repVal = lldTable[idx - 1];
-                    repCnt = 3 + ConsumeBits(&compData, 2);
-                }
-                else if(clSymbol == 17)
-                {
-                    repVal = 0;
-                    repCnt = 3 + ConsumeBits(&compData, 3);
-                }
-                else if(clSymbol == 18)
-                {
-                    repVal = 0;
-                    repCnt = 11 + ConsumeBits(&compData, 7);
+                    bytes = (u16)compData._contents._count;
                 }
 
-                while(repCnt--)
+                u8* src = (u8*)consume_size(&compData, bytes);
+                if (src)
                 {
-                    lldTable[idx++] = repVal;
+                    u16 cnt = bytes;
+                    while(cnt--)
+                    {
+                        decompData[decompIdx++] = *src++;
+                    }
                 }
+
+                LEN -= bytes;
             }
-
-            assert(idx == lldCnt);
-            free(clTable._entries);
+        } 
+        else
+        {
+            u32 lldTable[512];
 
             HuffmanTable llTable = AllocHuffman(LL_CODE_LENGTH);
             HuffmanTable dTable  = AllocHuffman(D_CODE_LENGTH);
+
+            u32 HLIT = 0;
+            u32 HDIST = 0;
+
+            if (BTYPE == FIXED_HUFFMAN)
+            {
+                HLIT = 288;
+                HDIST = 32;
+
+                u32 BitCounts[][2] =
+                {
+                    {143, 8},
+                    {255, 9},
+                    {279, 7},
+                    {287, 8},
+                    {319, 5},
+                };
+
+                u32 BitCountIndex = 0;
+                for(u32 RangeIndex = 0;
+                        RangeIndex < LEN(BitCounts);
+                        ++RangeIndex)
+                {
+                    u32 BitCount = BitCounts[RangeIndex][1];
+                    u32 LastValue = BitCounts[RangeIndex][0];
+                    while(BitCountIndex <= LastValue)
+                    {
+                        lldTable[BitCountIndex++] = BitCount;
+                    }
+                }
+            } 
+            else if (BTYPE == DYNAMIC_HUFFMAN)
+            {
+                HLIT  = ConsumeBits(&compData, 5) + 257;
+                HDIST = ConsumeBits(&compData, 5) + 1;
+                u32 HCLEN = ConsumeBits(&compData, 4) + 4;
+
+                const u8 clSymbols[19] = {16, 17, 18, 0, 8, 7, 9, 6, 10, 5, 11, 4, 12, 3, 13, 2, 14, 1, 15};
+                assert(HCLEN <= LEN(clSymbols));
+
+                u32 clArray[LEN(clSymbols)];
+                memset(clArray, 0, sizeof(clArray));
+
+                for (int i = 0; i < HCLEN; i++)
+                {
+                    clArray[clSymbols[i]] = ConsumeBits(&compData, 3);
+                }
+
+                HuffmanTable clTable = AllocHuffman(CL_CODE_LENGTH);
+                ComputeHuffman(LEN(clSymbols), clArray, &clTable);
+
+                u32 lldCnt = HLIT + HDIST;
+
+                u32 idx = 0;
+                u32 repVal;
+                u32 repCnt;
+                while(idx < lldCnt)
+                {
+                    u32 clSymbol = HuffmanDecode(&clTable, &compData);
+                    assert(clSymbol <= 18);
+                    if(clSymbol <= 15)
+                    {
+                        repVal = clSymbol;
+                        repCnt = 1;
+                    }
+                    else if(clSymbol == 16)
+                    {
+                        assert(idx > 0);
+                        repVal = lldTable[idx - 1];
+                        repCnt = 3 + ConsumeBits(&compData, 2);
+                    }
+                    else if(clSymbol == 17)
+                    {
+                        repVal = 0;
+                        repCnt = 3 + ConsumeBits(&compData, 3);
+                    }
+                    else if(clSymbol == 18)
+                    {
+                        repVal = 0;
+                        repCnt = 11 + ConsumeBits(&compData, 7);
+                    }
+
+                    while(repCnt--)
+                    {
+                        lldTable[idx++] = repVal;
+                    }
+                }
+
+                assert(idx == lldCnt);
+                free(clTable._entries);
+
+            }
+
             ComputeHuffman(HLIT,  lldTable,         &llTable);
             ComputeHuffman(HDIST, lldTable + HLIT,  &dTable);
 
@@ -297,7 +402,7 @@ image_u32 ParsePNG (stream file)
                 }
                 else if (llSymbol == 256)
                 {
-                    #ifdef DEBUG
+                    #ifdef PNG_DEBUG
                     printf("End of sample.\n");
                     #endif
                     break;
@@ -320,16 +425,16 @@ image_u32 ParsePNG (stream file)
                 }
             }
 
+            
+
         }
 
 
 
     }
 
-    #ifdef DEBUG
+    #ifdef PNG_DEBUG
     printf("%u / %u\n", decompIdx, bppSrc * width * height + height);
-    printf("BPP_decompPixels: %u\n", bppSrc);
-    printf("BPP_finalPixels: %u\n", bppDst);
     #endif
     assert(decompIdx == bppSrc * width * height + height);
 

@@ -1,4 +1,3 @@
-#include <SDL2/SDL_events.h>
 #include <stdlib.h>
 #include <SDL2/SDL.h>
 
@@ -36,13 +35,9 @@ void RenderImageU32(const image_u32* image) {
     SDL_Renderer* renderer = SDL_CreateRenderer(window, 0, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
     assert(renderer != NULL);
 
-    SDL_RenderClear(renderer);
 
     u32 width = image->_width;
     u32 height = image->_height;
-
-    printf("Width: %u\n", width);
-    printf("Height: %u\n", height);
 
     b32 quit = false;
     SDL_Event event;
@@ -57,6 +52,9 @@ void RenderImageU32(const image_u32* image) {
             }
         }
 
+        SDL_SetRenderDrawColor(renderer, 25, 20, 20, 0xFF);
+        SDL_RenderClear(renderer);
+
         u8* sample = (u8*)image->_pixels;
         for (u32 y = 0; y < height; y++)
         {
@@ -66,6 +64,7 @@ void RenderImageU32(const image_u32* image) {
                 u8 g = *sample++;
                 u8 b = *sample++;
                 u8 a = *sample++;
+                SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
                 SDL_SetRenderDrawColor(renderer, r, g, b, a);
                 SDL_RenderDrawPoint(renderer, x, y);
             }

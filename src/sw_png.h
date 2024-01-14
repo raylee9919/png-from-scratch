@@ -85,6 +85,16 @@ typedef struct
     HuffmanEntry* _entries;
 } HuffmanTable;
 
+typedef struct
+{
+    u16 _year;
+    u8  _month;
+    u8  _day;
+    u8  _hour;
+    u8  _minute;
+    u8  _second;
+} tIME_Chunk;
+
 
 image_u32 ParsePNG(stream file);
 
