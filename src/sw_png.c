@@ -158,6 +158,8 @@ image_u32 ParsePNG (stream file)
             fprintf(stdout, "└ InterlaceMethod: %u\n", ihdr->_interlacemethod);
             #endif
 
+            assert(ihdr->_bitdepth == 8);
+
 
         }
         else if (!memcmp(chunk_header->_type, "PLTE", 4)) 
@@ -231,7 +233,7 @@ image_u32 ParsePNG (stream file)
     assert(CM == 8 && FDICT == 0);
 
     #ifdef PNG_DEBUG
-    printf("zlibHeader\n");
+    printf("\nzlibHeader\n");
     printf("├ CM: %u\n", CM);
     printf("├ CINFO: %u\n", CINFO);
     printf("├ FCHECK: %u\n", FCHECK);
@@ -248,12 +250,9 @@ image_u32 ParsePNG (stream file)
         BFINAL      = ConsumeBits(&compData, 1);
         u32 BTYPE   = ConsumeBits(&compData, 2);
 
-        if (BTYPE == RESERVED)
-        {
-            fprintf(stderr, "ERROR: Invalid BTYPE %u\n", BTYPE);
-            exit(EXIT_FAILURE);
-        } 
-        else if (BTYPE == NON_COMPRESSED)
+        assert(BTYPE != RESERVED);
+
+        if (BTYPE == NON_COMPRESSED)
         {
             FlushByte(&compData);
             u16 LEN     = (u16)ConsumeBits(&compData, 16);
@@ -402,9 +401,6 @@ image_u32 ParsePNG (stream file)
                 }
                 else if (llSymbol == 256)
                 {
-                    #ifdef PNG_DEBUG
-                    printf("End of sample.\n");
-                    #endif
                     break;
                 }
                 else
@@ -425,18 +421,16 @@ image_u32 ParsePNG (stream file)
                 }
             }
 
-            
+            free(llTable._entries);
+            free(dTable._entries);
 
         }
-
-
-
     }
 
     #ifdef PNG_DEBUG
     printf("%u / %u\n", decompIdx, bppSrc * width * height + height);
     #endif
-    assert(decompIdx == bppSrc * width * height + height);
+    assert(decompIdx == (bppSrc * width * height + height));
 
     BuildResultPixels(pixels, decompData, width, height, colorType, bppDst, bppSrc);
     result._width  = width;
@@ -454,8 +448,6 @@ HuffmanTable AllocHuffman(u32 maxCodeLen)
 
     result._maxCodeLen = maxCodeLen;
     result._entryCnt = (1 << maxCodeLen);
-    // TODO: free this
-    // CL, LL, D
     result._entries = (HuffmanEntry*)malloc(result._entryCnt * sizeof(HuffmanEntry));
 
     return(result);
